@@ -57,7 +57,7 @@ func redisEmailVerificationRateLimiter(c *gin.Context) {
 func memoryEmailVerificationRateLimiter(c *gin.Context) {
 	key := EmailVerificationRateLimitMark + ":" + c.ClientIP()
 
-	if !inMemoryRateLimiter.Request(key, EmailVerificationMaxRequests, EmailVerificationDuration) {
+	if !common.ShardedRateLimitRequest(key, EmailVerificationMaxRequests, EmailVerificationDuration) {
 		c.JSON(http.StatusTooManyRequests, gin.H{
 			"success": false,
 			"message": "发送过于频繁，请稍后再试",
@@ -74,7 +74,6 @@ func EmailVerificationRateLimit() gin.HandlerFunc {
 		if common.RedisEnabled {
 			redisEmailVerificationRateLimiter(c)
 		} else {
-			inMemoryRateLimiter.Init(common.RateLimitKeyExpirationDuration)
 			memoryEmailVerificationRateLimiter(c)
 		}
 	}

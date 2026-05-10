@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -661,9 +662,14 @@ func AddChannel(c *gin.Context) {
 }
 
 func DeleteChannel(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		common.ApiError(c, errors.New("invalid id parameter"))
+		return
+	}
 	channel := model.Channel{Id: id}
-	err := channel.Delete()
+	err = channel.Delete()
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -1030,7 +1036,7 @@ func FetchModels(c *gin.Context) {
 		return
 	}
 
-	client := &http.Client{}
+	client := service.GetHttpClient()
 	url := fmt.Sprintf("%s/v1/models", baseURL)
 
 	request, err := http.NewRequest("GET", url, nil)

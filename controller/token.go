@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -234,9 +235,14 @@ func AddToken(c *gin.Context) {
 }
 
 func DeleteToken(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		common.ApiError(c, errors.New("invalid id parameter"))
+		return
+	}
 	userId := c.GetInt("id")
-	err := model.DeleteTokenById(id, userId)
+	err = model.DeleteTokenById(id, userId)
 	if err != nil {
 		common.ApiError(c, err)
 		return

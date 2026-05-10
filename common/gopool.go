@@ -3,7 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
-	"math"
+	"runtime"
 
 	"github.com/bytedance/gopkg/util/gopool"
 )
@@ -11,7 +11,12 @@ import (
 var relayGoPool gopool.Pool
 
 func init() {
-	relayGoPool = gopool.NewPool("gopool.RelayPool", math.MaxInt32, gopool.NewConfig())
+	numCPU := runtime.NumCPU()
+	maxGoroutines := numCPU * 4
+	if maxGoroutines < 32 {
+		maxGoroutines = 32
+	}
+	relayGoPool = gopool.NewPool("gopool.RelayPool", int32(maxGoroutines), gopool.NewConfig())
 	relayGoPool.SetPanicHandler(func(ctx context.Context, i interface{}) {
 		if stopChan, ok := ctx.Value("stop_chan").(chan bool); ok {
 			SafeSendBool(stopChan, true)

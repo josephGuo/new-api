@@ -12,8 +12,6 @@ import (
 
 var timeFormat = "2006-01-02T15:04:05.000Z"
 
-var inMemoryRateLimiter common.InMemoryRateLimiter
-
 var defNext = func(c *gin.Context) {
 	c.Next()
 }
@@ -24,7 +22,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 	key := "rateLimit:" + mark + c.ClientIP()
 	listLength, err := rdb.LLen(ctx, key).Result()
 	if err != nil {
-		fmt.Println(err.Error())
+		common.SysError("redisRateLimiter LLen error: " + err.Error())
 		c.Status(http.StatusInternalServerError)
 		c.Abort()
 		return
@@ -36,7 +34,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 		oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
 		oldTime, err := time.Parse(timeFormat, oldTimeStr)
 		if err != nil {
-			fmt.Println(err)
+			common.SysError("redisRateLimiter time.Parse error: " + err.Error())
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return
@@ -44,7 +42,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 		nowTimeStr := time.Now().Format(timeFormat)
 		nowTime, err := time.Parse(timeFormat, nowTimeStr)
 		if err != nil {
-			fmt.Println(err)
+			common.SysError("redisRateLimiter time.Parse error: " + err.Error())
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return
@@ -66,7 +64,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 
 func memoryRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
 	key := mark + c.ClientIP()
-	if !inMemoryRateLimiter.Request(key, maxRequestNum, duration) {
+	if !common.ShardedRateLimitRequest(key, maxRequestNum, duration) {
 		c.Status(http.StatusTooManyRequests)
 		c.Abort()
 		return
@@ -78,12 +76,9 @@ func rateLimitFactory(maxRequestNum int, duration int64, mark string) func(c *gi
 		return func(c *gin.Context) {
 			redisRateLimiter(c, maxRequestNum, duration, mark)
 		}
-	} else {
-		// It's safe to call multi times.
-		inMemoryRateLimiter.Init(common.RateLimitKeyExpirationDuration)
-		return func(c *gin.Context) {
-			memoryRateLimiter(c, maxRequestNum, duration, mark)
-		}
+	}
+	return func(c *gin.Context) {
+		memoryRateLimiter(c, maxRequestNum, duration, mark)
 	}
 }
 
@@ -132,8 +127,6 @@ func userRateLimitFactory(maxRequestNum int, duration int64, mark string) func(c
 			userRedisRateLimiter(c, maxRequestNum, duration, key)
 		}
 	}
-	// It's safe to call multi times.
-	inMemoryRateLimiter.Init(common.RateLimitKeyExpirationDuration)
 	return func(c *gin.Context) {
 		userId := c.GetInt("id")
 		if userId == 0 {
@@ -142,7 +135,7 @@ func userRateLimitFactory(maxRequestNum int, duration int64, mark string) func(c
 			return
 		}
 		key := fmt.Sprintf("%s:user:%d", mark, userId)
-		if !inMemoryRateLimiter.Request(key, maxRequestNum, duration) {
+		if !common.ShardedRateLimitRequest(key, maxRequestNum, duration) {
 			c.Status(http.StatusTooManyRequests)
 			c.Abort()
 			return
@@ -157,7 +150,7 @@ func userRedisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, key
 	rdb := common.RDB
 	listLength, err := rdb.LLen(ctx, key).Result()
 	if err != nil {
-		fmt.Println(err.Error())
+		common.SysError("userRedisRateLimiter LLen error: " + err.Error())
 		c.Status(http.StatusInternalServerError)
 		c.Abort()
 		return
@@ -169,7 +162,7 @@ func userRedisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, key
 		oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
 		oldTime, err := time.Parse(timeFormat, oldTimeStr)
 		if err != nil {
-			fmt.Println(err)
+			common.SysError("userRedisRateLimiter time.Parse error: " + err.Error())
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return
@@ -177,7 +170,7 @@ func userRedisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, key
 		nowTimeStr := time.Now().Format(timeFormat)
 		nowTime, err := time.Parse(timeFormat, nowTimeStr)
 		if err != nil {
-			fmt.Println(err)
+			common.SysError("userRedisRateLimiter time.Parse error: " + err.Error())
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return

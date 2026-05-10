@@ -72,7 +72,7 @@ func (p *PasskeyCredential) SetTransports(list []protocol.AuthenticatorTransport
 	p.Transports = string(encoded)
 }
 
-func (p *PasskeyCredential) ToWebAuthnCredential() webauthn.Credential {
+func (p *PasskeyCredential) ToWebAuthnCredential() *webauthn.Credential {
 	flags := webauthn.CredentialFlags{
 		UserPresent:    p.UserPresent,
 		UserVerified:   p.UserVerified,
@@ -84,7 +84,7 @@ func (p *PasskeyCredential) ToWebAuthnCredential() webauthn.Credential {
 	pubKey, _ := base64.StdEncoding.DecodeString(p.PublicKey)
 	aaguid, _ := base64.StdEncoding.DecodeString(p.AAGUID)
 
-	return webauthn.Credential{
+	return &webauthn.Credential{
 		ID:              credID,
 		PublicKey:       pubKey,
 		AttestationType: p.AttestationType,

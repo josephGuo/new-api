@@ -166,8 +166,9 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 }
 
 func AdminUpdateSubscriptionPlan(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	if id <= 0 {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
 		common.ApiErrorMsg(c, "无效的ID")
 		return
 	}
@@ -220,7 +221,7 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		return
 	}
 
-	err := model.DB.Transaction(func(tx *gorm.DB) error {
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
 		// update plan (allow zero values updates with map)
 		updateMap := map[string]interface{}{
 			"title":                      req.Plan.Title,
@@ -259,8 +260,9 @@ type AdminUpdateSubscriptionPlanStatusRequest struct {
 }
 
 func AdminUpdateSubscriptionPlanStatus(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	if id <= 0 {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
 		common.ApiErrorMsg(c, "无效的ID")
 		return
 	}

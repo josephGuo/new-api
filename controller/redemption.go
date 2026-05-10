@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"unicode/utf8"
@@ -113,8 +114,13 @@ func AddRedemption(c *gin.Context) {
 }
 
 func DeleteRedemption(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	err := model.DeleteRedemptionById(id)
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		common.ApiError(c, errors.New("invalid id parameter"))
+		return
+	}
+	err = model.DeleteRedemptionById(id)
 	if err != nil {
 		common.ApiError(c, err)
 		return

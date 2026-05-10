@@ -53,7 +53,7 @@ func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 		return nil
 	}
 	cred := u.credential.ToWebAuthnCredential()
-	return []webauthn.Credential{cred}
+	return []webauthn.Credential{*cred}
 }
 
 func (u *WebAuthnUser) ModelUser() *model.User {

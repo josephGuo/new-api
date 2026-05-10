@@ -85,7 +85,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		successKey := fmt.Sprintf("rateLimit:%s:%s", ModelRequestRateLimitSuccessCountMark, userId)
 		allowed, err := checkRedisRateLimit(ctx, rdb, successKey, successMaxCount, duration)
 		if err != nil {
-			fmt.Println("检查成功请求数限制失败:", err.Error())
+			common.SysError("检查成功请求数限制失败: " + err.Error())
 			abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
 			return
 		}
@@ -108,7 +108,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 			)
 
 			if err != nil {
-				fmt.Println("检查总请求数限制失败:", err.Error())
+				common.SysError("检查总请求数限制失败: " + err.Error())
 				abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
 				return
 			}
@@ -130,15 +130,13 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 
 // 内存限流处理器
 func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) gin.HandlerFunc {
-	inMemoryRateLimiter.Init(time.Duration(setting.ModelRequestRateLimitDurationMinutes) * time.Minute)
-
 	return func(c *gin.Context) {
 		userId := strconv.Itoa(c.GetInt("id"))
 		totalKey := ModelRequestRateLimitCountMark + userId
 		successKey := ModelRequestRateLimitSuccessCountMark + userId
 
 		// 1. 检查总请求数限制（当totalMaxCount为0时跳过）
-		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
+		if totalMaxCount > 0 && !common.ShardedRateLimitRequest(totalKey, totalMaxCount, duration) {
 			c.Status(http.StatusTooManyRequests)
 			c.Abort()
 			return
@@ -147,7 +145,7 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		// 2. 检查成功请求数限制
 		// 使用一个临时key来检查限制，这样可以避免实际记录
 		checkKey := successKey + "_check"
-		if !inMemoryRateLimiter.Request(checkKey, successMaxCount, duration) {
+		if !common.ShardedRateLimitRequest(checkKey, successMaxCount, duration) {
 			c.Status(http.StatusTooManyRequests)
 			c.Abort()
 			return
@@ -158,7 +156,7 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 
 		// 4. 如果请求成功，记录到实际的成功请求计数中
 		if c.Writer.Status() < 400 {
-			inMemoryRateLimiter.Request(successKey, successMaxCount, duration)
+			common.ShardedRateLimitRequest(successKey, successMaxCount, duration)
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -36,7 +37,18 @@ func InitRedisClient() (err error) {
 	if err != nil {
 		FatalLog("failed to parse Redis connection string: " + err.Error())
 	}
-	opt.PoolSize = GetEnvOrDefault("REDIS_POOL_SIZE", 10)
+	defaultPoolSize := runtime.NumCPU() * 10
+	if defaultPoolSize < 50 {
+		defaultPoolSize = 50
+	}
+	opt.PoolSize = GetEnvOrDefault("REDIS_POOL_SIZE", defaultPoolSize)
+
+	defaultMinIdleConns := runtime.NumCPU() * 2
+	if defaultMinIdleConns < 10 {
+		defaultMinIdleConns = 10
+	}
+	opt.MinIdleConns = GetEnvOrDefault("REDIS_MIN_IDLE_CONNS", defaultMinIdleConns)
+
 	RDB = redis.NewClient(opt)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
